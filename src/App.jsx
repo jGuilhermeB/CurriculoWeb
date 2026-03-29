@@ -302,7 +302,7 @@ export default function App() {
         <section className="hero">
           <div className="wrap hero__grid">
             <div className="hero__copy">
-              <p className="kicker">Fortaleza, CE • Remoto</p>
+              <p className="kicker">Fortaleza, CE • Remoto-Hibrido-Presencial</p>
               <h1>Construo interfaces modernas e sistemas práticos, unindo TI e visão operacional.</h1>
               <p className="lede">
                 Experiência com <strong>React</strong>, <strong>Next.js</strong> e integração com{" "}
