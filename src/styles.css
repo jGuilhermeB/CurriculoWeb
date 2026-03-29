@@ -288,16 +288,20 @@ h3{
 }
 .contact__note p{ margin:0; font-size: 12px; }
 
-.jobbox{
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed rgba(255,255,255,0.18);
-  display:grid;
-  gap: 10px;
+.contactform{
+  margin-top: 16px;
 }
-.jobbox__input{
+.contactform__card{
+  padding: 18px;
+}
+.contactform__grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.contactform__input{
   width: 100%;
-  resize: vertical;
   padding: 12px 12px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.14);
@@ -305,20 +309,31 @@ h3{
   color: rgba(255,255,255,0.90);
   font: inherit;
   line-height: 1.4;
+  margin-top: 10px;
 }
-.jobbox__input::placeholder{
+.contactform__textarea{
+  resize: vertical;
+}
+.contactform__input::placeholder{
   color: rgba(255,255,255,0.55);
 }
-.jobbox__input:focus-visible{
+.contactform__input:focus-visible{
   outline: 2px solid rgba(125, 211, 252, 0.70);
   outline-offset: 2px;
 }
-.jobbox__btn{
-  width: 100%;
+.contactform__actions{
+  margin-top: 12px;
+  display:flex;
+  gap: 12px;
+  flex-wrap:wrap;
 }
-.jobbox__hint{
-  margin: 0;
+.contactform__hint{
+  margin: 10px 0 0;
   font-size: 12px;
+}
+
+@media (max-width: 980px){
+  .contactform__grid{ grid-template-columns: 1fr; }
 }
 
 .stats{

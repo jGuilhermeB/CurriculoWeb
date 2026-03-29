@@ -5,11 +5,15 @@ export default function App() {
   const [year, setYear] = useState(() => new Date().getFullYear());
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfLabel, setPdfLabel] = useState("Baixar PDF");
-  const [jobText, setJobText] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactBusy, setContactBusy] = useState(false);
+  const [contactStatus, setContactStatus] = useState(null); // "ok" | "err" | null
   const mainRef = useRef(null);
 
   const pdfFilename = useMemo(() => "Guilherme-Barroso.pdf", []);
-  const tailoredFilename = useMemo(() => "Guilherme-Barroso-ATS-Adaptado.pdf", []);
 
   useEffect(() => {
     setYear(new Date().getFullYear());
@@ -69,64 +73,6 @@ export default function App() {
         "V2MR: Atuação como suporte N1/N2 na migração e configuração de servidores Huawei e resolução de problemas de instalação. Duração: 4 meses (out/2025 – jan/2026).",
       ],
     };
-  }
-
-  function buildTailoredResume(baseResume, rawJobText) {
-    const base = JSON.parse(JSON.stringify(baseResume));
-    const jt = String(rawJobText || "").toLowerCase();
-    const keywords = [
-      "tcp/ip",
-      "vlan",
-      "vpn",
-      "dns",
-      "dhcp",
-      "nat",
-      "cisco",
-      "mikrotik",
-      "fortinet",
-      "aruba",
-      "zabbix",
-      "prtg",
-      "nagios",
-      "lacp",
-      "wi-fi",
-      "wifi",
-      "roteamento",
-      "firewall",
-      "switch",
-      "switches",
-      "patch",
-      "firmware",
-      "racks",
-      "servidores",
-      "monitoramento",
-      "troubleshooting",
-    ];
-
-    const matched = keywords.filter((k) => jt.includes(k));
-    const uniqueMatched = Array.from(new Set(matched.map((k) => (k === "wifi" ? "wi-fi" : k))));
-    if (uniqueMatched.length) base.keywords = uniqueMatched;
-
-    if (jt.includes("analista de redes")) {
-      base.role = "Analista de Redes | Técnico em Informática";
-      base.targetTitle = "Analista de Redes";
-    }
-
-    // Reordena bullets para trazer primeiro o que melhor bate com a vaga.
-    const score = (text) => {
-      const t = String(text).toLowerCase();
-      let s = 0;
-      for (const k of uniqueMatched) if (t.includes(k)) s += 2;
-      if (t.includes("suporte")) s += jt.includes("suporte") ? 1 : 0;
-      if (t.includes("sistemas")) s += jt.includes("infra") || jt.includes("redes") ? 1 : 0;
-      return s;
-    };
-    base.experience = base.experience.map((job) => ({
-      ...job,
-      bullets: [...job.bullets].sort((a, b) => score(b) - score(a)),
-    }));
-
-    return base;
   }
 
   async function generatePdf({ filename = pdfFilename, silent = true, resumeOverride } = {}) {
@@ -229,12 +175,6 @@ export default function App() {
         y = addWrapped(c, marginX, y, { fontSize: 10.5 });
       }
 
-      if (Array.isArray(resume.keywords) && resume.keywords.length) {
-        y += sectionGap;
-        y = addSectionHeader("Palavras-chave (ATS)", y);
-        y = addWrapped(resume.keywords.join(", "), marginX, y, { fontSize: 10.5 });
-      }
-
       y += sectionGap;
       y = addSectionHeader("Experiência profissional", y);
       for (const job of resume.experience) {
@@ -295,8 +235,39 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [pdfFilename]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const canTailor = jobText.trim().length >= 40;
-  const tailoredLabel = pdfBusy ? "Gerando…" : "PDF adaptado (vaga)";
+  async function sendContactEmail() {
+    if (contactBusy) return;
+    setContactBusy(true);
+    setContactStatus(null);
+    try {
+      const payload = {
+        name: contactName.trim(),
+        email: contactEmail.trim(),
+        subject: contactSubject.trim(),
+        message: contactMessage.trim(),
+      };
+
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      setContactStatus("ok");
+      setContactMessage("");
+    } catch (err) {
+      console.error("Falha ao enviar e-mail:", err);
+      setContactStatus("err");
+    } finally {
+      setContactBusy(false);
+      window.setTimeout(() => setContactStatus(null), 2500);
+    }
+  }
 
   return (
     <>
@@ -404,40 +375,6 @@ export default function App() {
 
               <div className="contact__note">
                 <p className="muted">Você também pode baixar um PDF desta página.</p>
-              </div>
-
-              <div className="jobbox" aria-label="Adaptar currículo para vaga">
-                <span className="label">Adaptar para vaga (ATS)</span>
-                <textarea
-                  className="jobbox__input"
-                  rows={6}
-                  placeholder="Cole aqui a descrição da vaga (requisitos e responsabilidades). O currículo original não será alterado."
-                  value={jobText}
-                  onChange={(e) => setJobText(e.target.value)}
-                />
-                <button
-                  className="btn btn--primary jobbox__btn"
-                  type="button"
-                  disabled={!canTailor || pdfBusy}
-                  onClick={() => {
-                    const base = getBaseResume();
-                    const tailored = buildTailoredResume(base, jobText);
-                    const rolePart = tailored.targetTitle ? `-${tailored.targetTitle}` : "";
-                    const safeRole = rolePart
-                      .toLowerCase()
-                      .normalize("NFD")
-                      .replace(/[\u0300-\u036f]/g, "")
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-|-$/g, "");
-                    const fn = `Guilherme-Barroso-ATS${safeRole ? `-${safeRole}` : ""}.pdf`;
-                    void generatePdf({ silent: false, filename: fn || tailoredFilename, resumeOverride: tailored });
-                  }}
-                >
-                  {tailoredLabel}
-                </button>
-                <p className="muted jobbox__hint">
-                  Dica: quanto mais completa a vaga, melhor a adaptação por palavras-chave.
-                </p>
               </div>
             </aside>
           </div>
@@ -590,12 +527,9 @@ export default function App() {
             </div>
 
             <div className="contact2__actions">
-              <a
-                className="btn btn--primary"
-                href="mailto:jdasilveirabarroso@gmail.com?subject=Contato%20-%20Landing%20Page%20Curr%C3%ADculo"
-              >
-                Enviar e-mail
-              </a>
+              <button className="btn btn--primary" type="button" onClick={() => void sendContactEmail()} disabled={contactBusy}>
+                {contactBusy ? "Enviando…" : contactStatus === "ok" ? "Enviado" : contactStatus === "err" ? "Falhou" : "Enviar e-mail"}
+              </button>
               <a
                 className="btn btn--ghost"
                 href="https://www.linkedin.com/in/guilherme-barroso-119481219/"
@@ -609,6 +543,50 @@ export default function App() {
               </a>
             </div>
           </div>
+
+          <div className="wrap contactform" aria-label="Formulário de contato">
+            <div className="card contactform__card">
+              <h3>Mensagem rápida</h3>
+              <div className="contactform__grid">
+                <input
+                  className="contactform__input"
+                  type="text"
+                  placeholder="Seu nome"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                />
+                <input
+                  className="contactform__input"
+                  type="email"
+                  placeholder="Seu e-mail"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                />
+              </div>
+              <input
+                className="contactform__input"
+                type="text"
+                placeholder="Assunto"
+                value={contactSubject}
+                onChange={(e) => setContactSubject(e.target.value)}
+              />
+              <textarea
+                className="contactform__input contactform__textarea"
+                rows={5}
+                placeholder="Sua mensagem"
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+              />
+              <div className="contactform__actions">
+                <button className="btn btn--primary" type="button" onClick={() => void sendContactEmail()} disabled={contactBusy}>
+                  {contactBusy ? "Enviando…" : contactStatus === "ok" ? "Enviado" : contactStatus === "err" ? "Falhou" : "Enviar"}
+                </button>
+              </div>
+              <p className="muted contactform__hint">
+                Envio real via servidor. Se falhar, veja o console e confira as variáveis do `.env`.
+              </p>
+            </div>
+          </div>
         </section>
 
         <footer className="footer">
@@ -616,7 +594,6 @@ export default function App() {
             <p className="muted">
               © <span id="year">{year}</span> José Guilherme Barroso
             </p>
-            <p className="muted">Feito como landing page (com geração de PDF em background).</p>
           </div>
         </footer>
       </main>
